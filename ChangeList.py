@@ -7,13 +7,19 @@ import codecs
 # clist_dict = {}
 if not 'clist_dict' in globals(): clist_dict = {}
 
+
 class History():
 
-    def __init__(self,key, view):
+    def __init__(self, key, view):
         self.key = key
         self.view = view
-        self.file_name = view.file_name()
-        self.point = list(view.sel())[0].a
+        self.update()
+
+    def update(self):
+        self.file_name = self.view.file_name()
+        self.point = list(self.view.sel())[0].a
+        print self.file_name
+
 
 # Change List object
 class CList():
@@ -22,6 +28,7 @@ class CList():
     pointer = -1
     key_list = []
     try_again_index = 0
+    goto_in_progress = False
 
     def push_key(self,view):
         region_list = list(view.sel())
@@ -85,15 +92,22 @@ class CList():
                 view.erase_regions(key)
         self.key_list = new_key_list
 
+    def update_head(self):
+        self.key_list[-1].update()
+
     def try_again(self):
-        if(self.try_again_index !=0):
-            self.goto(self.try_again_index) 
+        old = self.try_again_index != 0
+        if(old):
+            self.goto(self.try_again_index)
         self.try_again_index = 0
+        self.goto_in_progress = False
+        return old
 
     def goto(self, index):
         # print(self.key_list)
         if index>=0 or index< -len(self.key_list): return
 
+        self.goto_in_progress = True
         view = sublime.active_window().open_file(self.key_list[index].file_name)
         if view.is_loading():
             self.try_again_index = index;
@@ -109,6 +123,8 @@ class CList():
         #for s in sel[1:]:
         #    view.sel().add(s)
         view.sel().add(sublime.Region(point,point))
+        self.goto_in_progress = False
+
 
 def load_jsonfile():
     jsonFilepath = os.path.join(sublime.packages_path(), 'User', 'ChangeList.json')
@@ -137,10 +153,9 @@ def remove_jsonfile():
     if os.path.exists(jsonFilepath): os.remove(jsonFilepath)
 
 def get_clist(view = None, reset =False):
-    if not hasattr(get_clist, "one_true_list"): #(1)
+    if not hasattr(get_clist, "one_true_list") or reset: #(1)
         get_clist.one_true_list=CList()
-    if reset:
-        get_clist.one_true_list=CList()
+        
     return get_clist.one_true_list
     # not sure for the need for the json save-load so disabling
     # global clist_dict
@@ -188,6 +203,11 @@ class CListener(sublime_plugin.EventListener):
 
     def on_load(self,v):
         get_clist().try_again()
+        get_clist().update_head()
+
+    def on_activated(self,v):
+        if not get_clist().goto_in_progress:
+            get_clist().push_key(v)
 
 class JumpToChange(sublime_plugin.TextCommand):
     def run(self, _, **kwargs):
@@ -228,6 +248,7 @@ class ShowChangeList(sublime_plugin.WindowCommand):
         this_clist = get_clist(view)
         if not this_clist.key_list: return
         def f(i,history):
+            #print history.file_name
             view = history.view
             begin = view.get_regions(key.key)[0].begin()
             return "[%2d]  %s : %3d  -  %s" % (i,os.path.basename(history.file_name),view.rowcol(begin)[0]+1, view.substr(view.line(begin)))
