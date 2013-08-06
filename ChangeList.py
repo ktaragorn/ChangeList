@@ -13,6 +13,7 @@ class History():
         self.key = key
         self.view = view
         self.file_name = view.file_name()
+        self.point = list(view.sel())[0].a
 
 # Change List object
 class CList():
@@ -92,19 +93,22 @@ class CList():
     def goto(self, index):
         # print(self.key_list)
         if index>=0 or index< -len(self.key_list): return
-        
+
         view = sublime.active_window().open_file(self.key_list[index].file_name)
         if view.is_loading():
             self.try_again_index = index;
             return
 
         self.pointer = index
-        sel = view.get_regions(self.key_list[index].key)
+        point = self.key_list[index].point
+        print "Going to file - %s, point - %d" %(self.key_list[index].file_name, self.key_list[index].point)
+        #sel = view.get_regions(self.key_list[index].key)
         view.sel().clear()
-        view.show_at_center(sel[0])
+        view.show_at_center(point)#sel[0])
         sublime.active_window().focus_view(view)
-        for s in sel:
-            view.sel().add(s)
+        #for s in sel[1:]:
+        #    view.sel().add(s)
+        view.sel().add(sublime.Region(point,point))
 
 def load_jsonfile():
     jsonFilepath = os.path.join(sublime.packages_path(), 'User', 'ChangeList.json')
