@@ -101,7 +101,7 @@ class CList():
 
         self.pointer = index
         point = self.key_list[index].point
-        print "Going to file - %s, point - %d" %(self.key_list[index].file_name, self.key_list[index].point)
+        #print "Going to index - %d/%d file - %s, point - %d" %(index, len(self.key_list), self.key_list[index].file_name, self.key_list[index].point)
         #sel = view.get_regions(self.key_list[index].key)
         view.sel().clear()
         view.show_at_center(point)#sel[0])
@@ -205,8 +205,9 @@ class JumpToChange(sublime_plugin.TextCommand):
         if not this_clist.key_list: return
         if 'move' in kwargs:
             move = kwargs['move']
-            if move == -1 and this_clist.pointer == -1 and view.get_regions(this_clist.key_list[-1].key) != list(view.sel()):
-                move = 0
+            #not sure exactly what this is doing.. possibly something to do with the per-file lists
+            #if move == -1 and this_clist.pointer == -1 # and view.get_regions(this_clist.key_list[-1].key) != list(view.sel()):
+                #move = 0
             index = this_clist.pointer+move
         elif 'index' in kwargs:
             index = kwargs['index']
