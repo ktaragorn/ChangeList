@@ -7,6 +7,12 @@ import codecs
 # clist_dict = {}
 if not 'clist_dict' in globals(): clist_dict = {}
 
+class History():
+
+    def __init__(self,key, view):
+        self.key = key
+        self.view = view
+
 # Change List object
 class CList():
     LIST_LIMIT = 50
@@ -14,16 +20,12 @@ class CList():
     pointer = -1
     key_list = []
 
-    def __init__(self, view):
-        self.view = view
-
-    def push_key(self):
-        view = self.view
+    def push_key(self,view):
         region_list = list(view.sel())
         if not region_list: return
 
         if self.key_list:
-            last_sel = view.get_regions(self.key_list[-1])
+            last_sel = view.get_regions(self.key_list[-1].key)
             # dont push key if no jump
             if last_sel == region_list: return
 
@@ -37,7 +39,7 @@ class CList():
         key = self.generate_key()
         view.erase_regions(key)
         view.add_regions(key, region_list ,"")
-        self.key_list.append(key)
+        self.key_list.append(History(key,view))
 
     def generate_key(self):
         self.key_counter += 1
@@ -51,40 +53,41 @@ class CList():
 
     def reload_keys(self, sel_list=None):
         view = self.view
-        if not sel_list: sel_list = [self.view.get_regions(key) for key in self.key_list]
+        if not sel_list: sel_list = [self.view.get_regions(history.key) for history in self.key_list]
         for i,sel in enumerate(sel_list):
             view.erase_regions("cl"+str(i+1))
             view.add_regions("cl"+str(i+1), sel, "")
-        self.key_list = ["cl"+str(i+1) for i in range(len(sel_list))]
+        self.key_list = [History("cl"+str(i+1)) for i in range(len(sel_list))]
         # print(self.key_list)
         self.key_counter = len(sel_list)
 
 
     def trim_keys(self):
-        view = self.view
         if len(self.key_list) > self.LIST_LIMIT:
             for i in range(0, len(self.key_list) - self.LIST_LIMIT):
-                key = self.key_list[i]
+                key = self.key_list[i].key
+                view = self.key_list[i].view
                 view.erase_regions(key)
             del self.key_list[: len(self.key_list) - self.LIST_LIMIT]
 
     def remove_empty_keys(self):
-        view = self.view
         new_key_list = []
-        for key in self.key_list:
+        for history in self.key_list:
+            key = history.key
+            view = history.view
             # print(view.get_regions(key))
             if view.get_regions(key):
-                new_key_list.append(key)
+                new_key_list.append(history)
             else:
                 view.erase_regions(key)
         self.key_list = new_key_list
 
     def goto(self, index):
         # print(self.key_list)
-        view = self.view
         if index>=0 or index< -len(self.key_list): return
+        view = self.key_list[index].view
         self.pointer = index
-        sel = view.get_regions(self.key_list[index])
+        sel = view.get_regions(self.key_list[index].key)
         view.sel().clear()
         view.show(sel[0], True)
         for s in sel:
@@ -117,31 +120,34 @@ def remove_jsonfile():
     if os.path.exists(jsonFilepath): os.remove(jsonFilepath)
 
 def get_clist(view):
-    global clist_dict
-    vid = view.id()
-    vname = view.file_name()
-    if vid in clist_dict:
-        this_clist = clist_dict[vid]
-    else:
-        this_clist = CList(view)
-        clist_dict[vid] = this_clist
-        data = load_jsonfile()
-        f = lambda s: sublime.Region(int(s[0]),int(s[1])) if len(s)==2 else sublime.Region(int(s[0]),int(s[0]))
-        try:
-            if vname in data:
-                print("Reloading keys...")
-                sel_list = [[f(s.split(",")) for s in sel.split(":")] for sel in data[vname]['history'].split("|")]
-                this_clist.reload_keys(sel_list)
-        except:
-            print("Reload keys failed!")
-    return this_clist
+    if not hasattr(get_clist, "one_true_list"): #(1)
+        get_clist.one_true_list=CList()
+    return get_clist.one_true_list
+    # global clist_dict
+    # vid = view.id()
+    # vname = view.file_name()
+    # if vid in clist_dict:
+    #     this_clist = clist_dict[vid]
+    # else:
+    #     this_clist = CList(view)
+    #     clist_dict[vid] = this_clist
+    #     data = load_jsonfile()
+    #     f = lambda s: sublime.Region(int(s[0]),int(s[1])) if len(s)==2 else sublime.Region(int(s[0]),int(s[0]))
+    #     try:
+    #         if vname in data:
+    #             print("Reloading keys...")
+    #             sel_list = [[f(s.split(",")) for s in sel.split(":")] for sel in data[vname]['history'].split("|")]
+    #             this_clist.reload_keys(sel_list)
+    #     except:
+    #         print("Reload keys failed!")
+    # return this_clist
 
 class CListener(sublime_plugin.EventListener):
     def on_modified(self, view):
         if view.is_scratch() or view.settings().get('is_widget'): return
         this_clist = get_clist(view)
         this_clist.remove_empty_keys()
-        this_clist.push_key()
+        this_clist.push_key(view)
         this_clist.trim_keys()
         # print(this_clist, this_clist.key_list)
         # for key in this_clist.key_list:
@@ -176,15 +182,15 @@ class JumpToChange(sublime_plugin.TextCommand):
         if not this_clist.key_list: return
         if 'move' in kwargs:
             move = kwargs['move']
-            if move == -1 and this_clist.pointer == -1 and view.get_regions(this_clist.key_list[-1]) != list(view.sel()):
+            if move == -1 and this_clist.pointer == -1 and view.get_regions(this_clist.key_list[-1].key) != list(view.sel()):
                 move = 0
             index = this_clist.pointer+move
         elif 'index' in kwargs:
             index = kwargs['index']
         else:
             return
-        if index>=0 or index< -len(this_clist.key_list): return
-        # print(len(this_clist.key_list))
+        if index>=0 orsdf index< -len(this_clist.key_list): return
+        # print(len(this_clist.key_list))asd
         this_clist.goto(index)
         # to reactivate cursor
         view.run_command("move", {"by": "characters", "forward" : False})
