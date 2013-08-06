@@ -90,6 +90,7 @@ class CList():
         sel = view.get_regions(self.key_list[index].key)
         view.sel().clear()
         view.show(sel[0], True)
+        sublime.active_window().focus_view(view)
         for s in sel:
             view.sel().add(s)
 
@@ -189,7 +190,7 @@ class JumpToChange(sublime_plugin.TextCommand):
             index = kwargs['index']
         else:
             return
-        if index>=0 orsdf index< -len(this_clist.key_list): return
+        if index>=0 or index< -len(this_clist.key_list): return
         # print(len(this_clist.key_list))asd
         this_clist.goto(index)
         # to reactivate cursor
