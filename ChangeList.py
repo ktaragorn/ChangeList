@@ -88,7 +88,7 @@ class CList():
     def try_again(self):
         if(self.try_again_index !=0):
             self.goto(self.try_again_index) 
-        self.index = 0
+        self.try_again_index = 0
 
     def goto(self, index):
         # print(self.key_list)
