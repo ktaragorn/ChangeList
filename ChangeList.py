@@ -132,10 +132,13 @@ def remove_jsonfile():
     jsonFilepath = os.path.join(sublime.packages_path(), 'User', 'ChangeList.json')
     if os.path.exists(jsonFilepath): os.remove(jsonFilepath)
 
-def get_clist(view):
+def get_clist(view = None, reset =False):
     if not hasattr(get_clist, "one_true_list"): #(1)
         get_clist.one_true_list=CList()
+    if reset:
+        get_clist.one_true_list=CList()
     return get_clist.one_true_list
+    # not sure for the need for the json save-load so disabling
     # global clist_dict
     # vid = view.id()
     # vname = view.file_name()
@@ -166,12 +169,13 @@ class CListener(sublime_plugin.EventListener):
         # for key in this_clist.key_list:
         #     print(view.get_regions(key))
 
+    # fixed this but not sure if it actually fixed what it is meant to do.
     def on_post_save(self, view):
         this_clist = get_clist(view)
         vname = view.file_name()
         data = load_jsonfile()
         f = lambda s: str(s.begin())+","+str(s.end()) if s.begin()!=s.end() else str(s.begin())
-        data[vname] =  {"history": "|".join([":".join([f(s) for s in view.get_regions(key)]) for key in this_clist.key_list])}
+        data[vname] =  {"history": "|".join([":".join([f(s) for s in view.get_regions(history.key)]) for history in this_clist.key_list])}
         save_jsonfile(data)
 
     def on_close(self, view):
@@ -221,7 +225,7 @@ class ShowChangeList(sublime_plugin.WindowCommand):
         def f(i,history):
             view = history.view
             begin = view.get_regions(key.key)[0].begin()
-            return "[%2d]  %s : %3d  -  %s" % (i,os.path.basename(view.file_name()),view.rowcol(begin)[0]+1, view.substr(view.line(begin)))
+            return "[%2d]  %s : %3d  -  %s" % (i,os.path.basename(history.file_name),view.rowcol(begin)[0]+1, view.substr(view.line(begin)))
         self.window.show_quick_panel([ f(i,key)
                     for i,key in enumerate(reversed(this_clist.key_list))], self.on_done)
 
@@ -244,7 +248,10 @@ class MaintainChangeList(sublime_plugin.WindowCommand):
             fname = os.path.basename(view.file_name())
         except:
             fname = "untitled"
-        self.show_quick_panel(["Rebuild History", "Clear History - "+fname, "Clear All History"], self.confirm)
+        self.show_quick_panel(
+            ["Rebuild History", 
+            #"Clear History - "+fname,  Loses meaning now that the history is interspersed
+            "Clear All History"], self.confirm)
 
     def confirm(self, action):
         if action<0: return
@@ -265,17 +272,18 @@ class MaintainChangeList(sublime_plugin.WindowCommand):
                 data.pop(item)
             save_jsonfile(data)
             sublime.status_message("Change List History is rebuilt successfully.")
-        elif action==1:
-            vid = view.id()
-            vname = view.file_name()
-            if vid in clist_dict: clist_dict.pop(vid)
-            if vname:
-                data = load_jsonfile()
-                if vname in data:
-                    data.pop(vname)
-                    save_jsonfile(data)
-            sublime.status_message("Change List (this file) is cleared successfully.")
-        elif action==2:
+        # elif action==1:
+        #     vid = view.id()
+        #     vname = view.file_name()
+        #     if vid in clist_dict: clist_dict.pop(vid)
+        #     if vname:
+        #         data = load_jsonfile()
+        #         if vname in data:
+        #             data.pop(vname)
+        #             save_jsonfile(data)
+        #     sublime.status_message("Change List (this file) is cleared successfully.")
+        elif action== 1:#2:
             clist_dict = {}
+            get_clist(None,True)
             remove_jsonfile()
             sublime.status_message("Change List (all file) is cleared successfully.")
