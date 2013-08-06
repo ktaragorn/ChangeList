@@ -191,7 +191,7 @@ class JumpToChange(sublime_plugin.TextCommand):
         else:
             return
         if index>=0 or index< -len(this_clist.key_list): return
-        # print(len(this_clist.key_list))asd
+        # print(len(this_clist.key_list))
         this_clist.goto(index)
         # to reactivate cursor
         view.run_command("move", {"by": "characters", "forward" : False})
@@ -204,9 +204,10 @@ class ShowChangeList(sublime_plugin.WindowCommand):
         if view.is_scratch() or view.settings().get('is_widget'): return
         this_clist = get_clist(view)
         if not this_clist.key_list: return
-        def f(i,key):
-            begin = view.get_regions(key)[0].begin()
-            return "[%2d] %3d: %s" % (i, view.rowcol(begin)[0]+1, view.substr(view.line(begin)))
+        def f(i,history):
+            view = history.view
+            begin = view.get_regions(key.key)[0].begin()
+            return "[%2d]  %s : %3d  -  %s" % (i,os.path.basename(view.file_name()),view.rowcol(begin)[0]+1, view.substr(view.line(begin)))
         self.window.show_quick_panel([ f(i,key)
                     for i,key in enumerate(reversed(this_clist.key_list))], self.on_done)
 
