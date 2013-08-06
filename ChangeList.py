@@ -12,6 +12,7 @@ class History():
     def __init__(self,key, view):
         self.key = key
         self.view = view
+        self.file_name = view.file_name()
 
 # Change List object
 class CList():
@@ -19,6 +20,7 @@ class CList():
     key_counter = 0
     pointer = -1
     key_list = []
+    try_again_index = 0
 
     def push_key(self,view):
         region_list = list(view.sel())
@@ -82,10 +84,20 @@ class CList():
                 view.erase_regions(key)
         self.key_list = new_key_list
 
+    def try_again(self):
+        if(self.try_again_index !=0):
+            self.goto(self.try_again_index) 
+        self.index = 0
+
     def goto(self, index):
         # print(self.key_list)
         if index>=0 or index< -len(self.key_list): return
-        view = self.key_list[index].view
+        
+        view = sublime.active_window().open_file(self.key_list[index].file_name)
+        if view.is_loading():
+            self.try_again_index = index;
+            return
+
         self.pointer = index
         sel = view.get_regions(self.key_list[index].key)
         view.sel().clear()
@@ -166,6 +178,8 @@ class CListener(sublime_plugin.EventListener):
         vid = view.id()
         if vid in clist_dict: clist_dict.pop(vid)
 
+    def on_load(self,v):
+        get_clist().try_again()
 
 class JumpToChange(sublime_plugin.TextCommand):
     def run(self, _, **kwargs):
