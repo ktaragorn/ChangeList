@@ -89,7 +89,7 @@ class CList():
         self.pointer = index
         sel = view.get_regions(self.key_list[index].key)
         view.sel().clear()
-        view.show(sel[0], True)
+        view.show_at_center(sel[0])
         sublime.active_window().focus_view(view)
         for s in sel:
             view.sel().add(s)
