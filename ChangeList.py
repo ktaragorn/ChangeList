@@ -20,7 +20,7 @@ class History():
     def update(self):
         self.file_name = self.view.file_name()
         self.point = get_point_from_view(self.view)
-        print self.file_name
+        return self.file_name
 
 
 # Change List object
@@ -119,7 +119,7 @@ class CList():
 
     def update_head(self):
         if not self.same_file_focus_add(self.history_list[-1].view.file_name):
-            self.history_list[-1].update()
+            self.last_added_file = self.history_list[-1].update()
         else:
             del self.history_list[-1]
 
