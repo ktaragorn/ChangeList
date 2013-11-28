@@ -118,7 +118,7 @@ class CList():
             return False
 
     def update_head(self):
-        if not self.same_file_focus_add(self.history_list[-1].view.file_name):
+        if len(self.history_list)>0 and (not self.same_file_focus_add(self.history_list[-1].view.file_name)):
             self.last_added_file = self.history_list[-1].update()
         else:
             del self.history_list[-1]
@@ -250,6 +250,8 @@ class CListener(sublime_plugin.EventListener):
         get_clist(sublime.active_window()).update_head()
 
     def on_activated(self,v):
+        if not sublime.active_window():
+            return
         cList = get_clist(sublime.active_window())
         if not cList.goto_in_progress and (v.file_name() or v.is_loading()):
             cList.focus_add = True
